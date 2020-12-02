@@ -1,8 +1,9 @@
 class Quine:
-    def __init__(self, minterms: list, dont_care: list):
-        self.__minterms = minterms
-        self.__dont_care = dont_care
-        self.__minterms_with_dont_care = minterms + dont_care
+    def __init__(self, mt, dc, choice=0):
+        self.__mt = mt
+        self.__dc = dc
+        self.__md = mt + dc
+        self.__choice = choice
 
     def __mul(self, x, y):
         """
@@ -57,22 +58,28 @@ class Quine:
         """
         var_list = []
         for i in range(len(x)):
-            if x[i] == '0':
-                var_list.append(chr(i + 65) + "'")
-            elif x[i] == '1':
-                var_list.append(chr(i + 65))
+            if self.__choice == 0:
+                if x[i] == '0':
+                    var_list.append(chr(i + 65) + "'")
+                elif x[i] == '1':
+                    var_list.append(chr(i + 65))
+            else:
+                if x[i] == '0':
+                    var_list.append(chr(i + 65))
+                elif x[i] == '1':
+                    var_list.append(chr(i + 65) + "'")
         return var_list
 
     def __flatten(self, x):
         """
-        Chuyen dict thanh list 
+        Chuyen dict thanh list
         """
         flattened_items = []
         for i in x:
             flattened_items.extend(x[i])
         return flattened_items
 
-    def __find_minterms(self, a):
+    def __find_terms(self, a):
         """
         Tim ra cac mintern bi thay the boi ki tu "-".\n
         Vi du, 10-1 la 9(1001) va 11(1011)
@@ -114,38 +121,52 @@ class Quine:
         Removes minterms which are already covered from chart
         """
         for i in terms:
-            for j in self.__find_minterms(i):
+            for j in self.__find_terms(i):
                 try:
                     del _chart[j]
                 except KeyError:
                     pass
 
-    def __group_primary(self, minterms, size):
+    def __group_primary(self, md, size):
         """
         Nhom cac minterm theo so chu so 1
         """
         groups = {}
-        for minterm in minterms:
-            try:
-                groups[bin(minterm).count('1')].append(
-                    bin(minterm)[2:].zfill(size))
-            except KeyError:
-                groups[bin(minterm).count('1')] = [
-                    bin(minterm)[2:].zfill(size)]
+        if self.__choice == 0:
+            for minterm in md:
+                try:
+                    groups[bin(minterm).count('1')].append(
+                        bin(minterm)[2:].zfill(size))
+                except KeyError:
+                    groups[bin(minterm).count('1')] = [
+                        bin(minterm)[2:].zfill(size)]
+        else:
+            size = len(bin(self.__md[-1])) - 2
+            for maxterm in md:
+                try:
+                    groups[size - bin(maxterm).count('1')].append(
+                        bin(maxterm)[2:].zfill(size))
+                except KeyError:
+                    groups[size - bin(maxterm).count('1')] = [
+                        bin(maxterm)[2:].zfill(size)]
         return groups
 
     def __print_group(self, groups):
         """
         In ra bang gia tri
         """
-        print("\n\n\n\nGroup No.\tMinterms\tBinary of Minterms\n%s" %
-              ('=' * 50))
+        if self.__choice == 0:
+            print("\n\n\n\nGroup No.\tMinterms\tBinary of Minterms\n%s" %
+                  ('=' * 50))
+        else:
+            print("\n\n\n\nGroup No.\tMaxterms\tBinary of Maxterms\n%s" %
+                  ('=' * 50))
         for i in sorted(groups.keys()):
             print("%5d:" % i)  # Prints group number
             for j in groups[i]:
                 # Prints minterms and its binary representation
                 print("\t\t%-24s%s" %
-                      (','.join(self.__find_minterms(j)), j))
+                      (','.join(self.__find_terms(j)), j))
             print('-' * 50)
 
     def __replace(self, tmp, groups, m, marked, should_stop):
@@ -172,13 +193,13 @@ class Quine:
         """
         Toi uu hoa dung Quine
         """
-        self.__minterms.sort()
-        self.__minterms_with_dont_care.sort()
-        size = len(bin(self.__minterms_with_dont_care[-1])) - 2
+        self.__mt.sort()
+        self.__md.sort()
+        size = len(bin(self.__md[-1])) - 2
         all_pi = set()
 
         # Primary grouping starts
-        groups = self.__group_primary(self.__minterms_with_dont_care, size)
+        groups = self.__group_primary(self.__md, size)
         # Primary grouping ends
 
         # Primary group printing starts
@@ -211,10 +232,14 @@ class Quine:
         # Printing and processing of Prime Implicant chart starts
         sz = len(str(mt[-1]))  # The number of digits of the largest minterm
         chart = {}
-        print('\n\n\nPrime Implicants chart:\n\n    Minterms    |%s\n%s' % (
-            ' '.join((' ' * (sz - len(str(i)))) + str(i) for i in mt), '=' * (len(mt) * (sz + 1) + 16)))
+        if self.__choice == 0:
+            print('\n\n\nPrime Implicants chart:\n\n    Minterms    |%s\n%s' % (
+                ' '.join((' ' * (sz - len(str(i)))) + str(i) for i in mt), '=' * (len(mt) * (sz + 1) + 16)))
+        else:
+            print('\n\n\nPrime Implicants chart:\n\n    Maxterms    |%s\n%s' % (
+                ' '.join((' ' * (sz - len(str(i)))) + str(i) for i in mt), '=' * (len(mt) * (sz + 1) + 16)))
         for i in all_pi:
-            merged_minterms, y = self.__find_minterms(i), 0
+            merged_minterms, y = self.__find_terms(i), 0
             print("%-16s|" % ','.join(merged_minterms), end='')
             for j in self.__refine(merged_minterms, dc):
                 # The position where we should put 'X'
@@ -247,15 +272,40 @@ class Quine:
             final_result = [min(P[0], key=len)]
             final_result.extend(self.__find_variables(i)
                                 for i in EPI)  # Adding the EPIs to final solution
-        print('\n\nSolution: F = ' + ' + '.join(''.join(i)
-                                                for i in final_result))
+        if self.__choice == 0:
+            print('\n\nSolution: F = ' + ' + '.join(''.join(i)
+                                                    for i in final_result))
+        else:
+            out = ""
+            for i in final_result:
+                out = out + '('
+                c = 0
+                for j in i:
+                    if c == 0:
+                        out = out + j
+                    else:
+                        out = out + "+" + j
+                    c = c + 1
+                out = out + ")"
+            print('\n\nSolution: F = ' + out)
 
 
 if __name__ == "__main__":
     while True:
-        mt = [int(i) for i in input("Enter the minterms: ").strip().split()]
+        choice = int(input("Minterms/Maxterms: (0/1) "))
+        mt = []
+        if choice == 0:
+            mt = [int(i)
+                  for i in input("Enter the minterms: ").strip().split()]
+        elif choice == 1:
+            mt = [int(i)
+                  for i in input("Enter the maxterms: ").strip().split()]
+        else:
+            print("Invalid choice")
+            continue
         dc = [int(i) for i in input("Enter the don't cares: ").strip().split()]
-        Quine(mt, dc).main()
+
+        Quine(mt, dc, choice).main()
         check = input("Do you want to quit? (Y/N) ")
         if check == 'Y' or check == 'y':
             break
