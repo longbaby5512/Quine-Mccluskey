@@ -120,6 +120,54 @@ class Quine:
                 except KeyError:
                     pass
 
+    def __group_primary(self, minterms, size):
+        """
+        Nhom cac minterm theo so chu so 1
+        """
+        groups = {}
+        for minterm in minterms:
+            try:
+                groups[bin(minterm).count('1')].append(
+                    bin(minterm)[2:].zfill(size))
+            except KeyError:
+                groups[bin(minterm).count('1')] = [
+                    bin(minterm)[2:].zfill(size)]
+        return groups
+
+    def __print_group(self, groups):
+        """
+        In ra bang gia tri
+        """
+        print("\n\n\n\nGroup No.\tMinterms\tBinary of Minterms\n%s" %
+              ('=' * 50))
+        for i in sorted(groups.keys()):
+            print("%5d:" % i)  # Prints group number
+            for j in groups[i]:
+                # Prints minterms and its binary representation
+                print("\t\t%-24s%s" %
+                      (','.join(self.__find_minterms(j)), j))
+            print('-' * 50)
+
+    def __replace(self, tmp, groups, m, marked, should_stop):
+        l = sorted(list(tmp.keys()))
+        for i in range(len(l) - 1):
+            for j in tmp[l[i]]:  # Loop which iterates through current group elements
+                for k in tmp[l[i + 1]]:  # Loop which iterates through next group elements
+                    res = self.__compare(j, k)  # Compare the minterms
+                    if res[0]:  # If the minterms differ by 1 bit only
+                        try:
+                            # Put a '-' in the changing bit and add it to corresponding group
+                            groups[m].append(j[:res[1]] + '-' + j[res[1] + 1:]) if j[:res[1]
+                                                                                     ] + '-' + j[res[1] + 1:] not in groups[m] else None
+                        except KeyError:
+                            # If the group doesn't exist, create the group at first and then put a '-' in the changing bit and add it to the newly created group
+                            groups[m] = [j[:res[1]] + '-' + j[res[1] + 1:]]
+                        should_stop = False
+                        marked.add(j)  # Mark element j
+                        marked.add(k)  # Mark element k
+            m += 1
+        return groups, m, marked, should_stop
+
     def main(self):
         """
         Toi uu hoa dung Quine
@@ -127,51 +175,23 @@ class Quine:
         self.__minterms.sort()
         self.__minterms_with_dont_care.sort()
         size = len(bin(self.__minterms_with_dont_care[-1])) - 2
-        groups, all_pi = {}, set()
+        all_pi = set()
 
         # Primary grouping starts
-        for minterm in self.__minterms_with_dont_care:
-            try:
-                groups[bin(minterm).count('1')].append(
-                    bin(minterm)[2:].zfill(size))
-            except KeyError:
-                groups[bin(minterm).count('1')] = [
-                    bin(minterm)[2:].zfill(size)]
+        groups = self.__group_primary(self.__minterms_with_dont_care, size)
         # Primary grouping ends
 
         # Primary group printing starts
-        print("\n\n\n\nGroup No.\tMinterms\tBinary of Minterms\n%s" % ('=' * 50))
-        for i in sorted(groups.keys()):
-            print("%5d:" % i)  # Prints group number
-            for j in groups[i]:
-                # Prints minterm and its binary representation
-                print("\t\t    %-20d%s" % (int(j, 2), j))
-            print('-' * 50)
+        self.__print_group(groups)
         # Primary group printing ends
 
         # Process for creating tables and finding prime implicants starts
         while True:
             tmp = groups.copy()
             groups, m, marked, should_stop = {}, 0, set(), True
-            l = sorted(list(tmp.keys()))
-            for i in range(len(l) - 1):
-                for j in tmp[l[i]]:  # Loop which iterates through current group elements
-                    for k in tmp[l[i + 1]]:  # Loop which iterates through next group elements
-                        res = self.__compare(j, k)  # Compare the minterms
-                        if res[0]:  # If the minterms differ by 1 bit only
-                            try:
-                                # Put a '-' in the changing bit and add it to corresponding group
-                                groups[m].append(j[:res[1]] + '-' + j[res[1] + 1:]) if j[:res[1]] + \
-                                    '-' + j[res[1] + 1:] not in \
-                                    groups[
-                                    m] else None
-                            except KeyError:
-                                # If the group doesn't exist, create the group at first and then put a '-' in the changing bit and add it to the newly created group
-                                groups[m] = [j[:res[1]] + '-' + j[res[1] + 1:]]
-                            should_stop = False
-                            marked.add(j)  # Mark element j
-                            marked.add(k)  # Mark element k
-                m += 1
+            groups, m, marked, should_stop = self.__replace(
+                tmp, groups, m, marked, should_stop)
+
             local_unmarked = set(self.__flatten(tmp)).difference(
                 marked)  # Unmarked elements of each table
             # Adding Prime Implicants to global list
@@ -184,15 +204,7 @@ class Quine:
                       0 else ', '.join(all_pi))  # Print all prime implicants
                 break
             # Printing of all the next groups starts
-            print("\n\n\n\nGroup No.\tMinterms\tBinary of Minterms\n%s" %
-                  ('=' * 50))
-            for i in sorted(groups.keys()):
-                print("%5d:" % i)  # Prints group number
-                for j in groups[i]:
-                    # Prints minterms and its binary representation
-                    print("\t\t%-24s%s" %
-                          (','.join(self.__find_minterms(j)), j))
-                print('-' * 50)
+            self.__print_group(groups)
             # Printing of all the next groups ends
         # Process for creating tables and finding prime implicants ends
 
@@ -242,8 +254,7 @@ class Quine:
 if __name__ == "__main__":
     while True:
         mt = [int(i) for i in input("Enter the minterms: ").strip().split()]
-        dc = [int(i)
-              for i in input("Enter the don't cares(If any): ").strip().split()]
+        dc = [int(i) for i in input("Enter the don't cares: ").strip().split()]
         Quine(mt, dc).main()
         check = input("Do you want to quit? (Y/N) ")
         if check == 'Y' or check == 'y':
