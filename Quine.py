@@ -81,7 +81,7 @@ class Quine:
 
     def __find_terms(self, a):
         """
-        Tim ra cac mintern bi thay the boi ki tu "-".\n
+        Tim ra cac term bi thay the boi ki tu "-".\n
         Vi du, 10-1 la 9(1001) va 11(1011)
         """
         gaps = a.count('-')
@@ -103,7 +103,7 @@ class Quine:
 
     def __compare(self, a, b):
         """
-        Kiem tra xem 2 minterm khac nhau 1 bit hay khong \n
+        Kiem tra xem 2 term khac nhau 1 bit hay khong \n
         Tra ve True, False va vi tri khac nhau
         """
         mismatch_index = 0
@@ -118,7 +118,7 @@ class Quine:
 
     def __remove_terms(self, _chart, terms):
         """
-        Removes minterms which are already covered from chart
+        Xoa terms da co trong chart
         """
         for i in terms:
             for j in self.__find_terms(i):
@@ -129,7 +129,7 @@ class Quine:
 
     def __group_primary(self, md, size):
         """
-        Nhom cac minterm theo so chu so 1
+        Nhom cac minterm theo so chu so 1 (minterm), so 0 (maxterm)
         """
         groups = {}
         if self.__choice == 0:
@@ -170,6 +170,9 @@ class Quine:
             print('-' * 50)
 
     def __replace(self, tmp, groups, m, marked, should_stop):
+        """
+        Thay the cac bit sai khac nhau bang ki tu "-"
+        """
         l = sorted(list(tmp.keys()))
         for i in range(len(l) - 1):
             for j in tmp[l[i]]:  # Loop which iterates through current group elements
@@ -239,9 +242,9 @@ class Quine:
             print('\n\n\nPrime Implicants chart:\n\n    Maxterms    |%s\n%s' % (
                 ' '.join((' ' * (sz - len(str(i)))) + str(i) for i in mt), '=' * (len(mt) * (sz + 1) + 16)))
         for i in all_pi:
-            merged_minterms, y = self.__find_terms(i), 0
-            print("%-16s|" % ','.join(merged_minterms), end='')
-            for j in self.__refine(merged_minterms, dc):
+            merged_terms, y = self.__find_terms(i), 0
+            print("%-16s|" % ','.join(merged_terms), end='')
+            for j in self.__refine(merged_terms, self.__dc):
                 # The position where we should put 'X'
                 x = mt.index(int(j)) * (sz + 1)
                 print(' ' * abs(x - y) + ' ' * (sz - 1) + 'X', end='')
